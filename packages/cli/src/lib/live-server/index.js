@@ -348,6 +348,30 @@ LiveServer.start = function(options) {
       }
   });
 
+  function isValidHost(host) {
+    // Regular expression for validating an IP address
+    const ipRegex =
+      /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+    // Regular expression for validating a hostname
+    const hostnameRegex = /^(?!:\/\/)([a-zA-Z0-9-_]{1,63}\.)+[a-zA-Z]{2,6}$/;
+
+    return ipRegex.test(host) || hostnameRegex.test(host);
+  }
+
+  function isValidPort(port) {
+    const portNumber = Number(port);
+    return Number.isInteger(portNumber) && portNumber >= 0 && portNumber <= 65535;
+  }
+
+  if (!isValidHost(host)) {
+    throw new Error(`Invalid host provided: ${host}. Please provide a valid IP address or hostname.`);
+  }
+
+  if (!isValidPort(port)) {
+    throw new Error(`Invalid port provided: ${port}. Please provide a valid port number between 0 and 65535.`);
+  }
+  
   // Setup server to listen at port
   server.listen(port, host);
   
