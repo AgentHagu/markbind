@@ -360,7 +360,7 @@ LiveServer.start = function(options) {
   }
 
   if (!isValidHost(host)) {
-    throw new Error(`Invalid host: ${host}`);
+    throw new Error(`Invalid host provided: ${host}. Please provide a valid IP address or hostname.`);
   }
   
   // Setup server to listen at port
