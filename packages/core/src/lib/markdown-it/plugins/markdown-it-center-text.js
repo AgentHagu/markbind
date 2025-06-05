@@ -28,103 +28,32 @@
 'use strict';
 
 module.exports = function centertext_plugin(md) {
+  function centertextProcessor(state, startLine, endLine, silent) {
+    const startPos = state.bMarks[startLine] + state.tShift[startLine];
+    const endPos = state.eMarks[startLine];
+    const line = state.src.slice(startPos, endPos).trim();
 
-  function tokenize(state, silent) {
-    var token,
-        max = state.posMax,
-        start = state.pos,
-        marker = state.src.charCodeAt(start);
-    if (start + 1 > max) { return false; }
-    if (silent) { return false; } // don't run any pairs in validation mode
-
-    if (marker === 45/* - */ &&
-      state.src.charCodeAt(start + 1) === 62/* > */
-      ) {
-      state.scanDelims(state.pos, true);
-      token         = state.push('text', '', 0);
-      token.content = '->';
-      state.delimiters.push({
-        marker: token.content,
-        jump:   0,
-        token:  state.tokens.length - 1,
-        level:  state.level,
-        end:    -1,
-        open:   true,
-        close:  false
-      });
-    } else if (marker === 60/* < */ &&
-      state.src.charCodeAt(start + 1) === 45/* - */
-      ) {
-      // found the close marker
-      state.scanDelims(state.pos, true);
-      token         = state.push('text', '', 0);
-      token.content = '<-';
-      state.delimiters.push({
-        marker: token.content,
-        jump:   0,
-        token:  state.tokens.length - 1,
-        level:  state.level,
-        end:    -1,
-        open:   false,
-        close:  true
-      });
-    } else {
-      // neither
+    if (!line.startsWith('->') || !line.endsWith('<-')) {
       return false;
     }
 
-    state.pos += 2;
+    if (silent) { return true; }
 
+    var content = line.slice("->".length).trim();
+    content = content.slice(0, content.length - "<-".length).trim();
+
+    const tokenOpen = state.push('centertext_open', 'div', 1);
+    tokenOpen.attrs = [ ['class', 'text-center'] ];
+
+    const tokenContent = state.push('inline', '', 0);
+    tokenContent.content = content;
+    tokenContent.children = [];
+
+    const tokenClose = state.push('centertext_close', 'div', -1);
+
+    state.line = startLine + 1;
     return true;
   }
 
-
-  // Walk through delimiter list and replace text tokens with tags
-  //
-  function postProcess(state) {
-    var i,
-        foundStart = false,
-        foundEnd = false,
-        delim,
-        token,
-        delimiters = state.delimiters,
-        max = state.delimiters.length;
-
-    for (i = 0; i < max; i++) {
-      delim = delimiters[i];
-      if (delim.marker === '->') {
-        foundStart = true;
-      } else if (delim.marker === '<-') {
-        foundEnd = true;
-      }
-    }
-    if (foundStart && foundEnd) {
-      for (i = 0; i < max; i++) {
-        delim = delimiters[i];
-
-        if (delim.marker === '->') {
-          foundStart = true;
-          token         = state.tokens[delim.token];
-          token.type    = 'centertext_open';
-          token.tag     = 'div';
-          token.nesting = 1;
-          token.markup  = '->';
-          token.content = '';
-          token.attrs = [ [ 'class', 'text-center' ] ];
-        } else if (delim.marker === '<-') {
-          if (foundStart) {
-            token         = state.tokens[delim.token];
-            token.type    = 'centertext_close';
-            token.tag     = 'div';
-            token.nesting = -1;
-            token.markup  = '<-';
-            token.content = '';
-          }
-        }
-      }
-    }
-  }
-
-  md.inline.ruler.before('emphasis', 'centertext', tokenize);
-  md.inline.ruler2.before('emphasis', 'centertext', postProcess);
+  md.block.ruler.before('blockquote', 'centertext', centertextProcessor);
 };
