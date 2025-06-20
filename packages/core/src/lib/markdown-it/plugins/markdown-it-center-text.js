@@ -99,29 +99,60 @@ module.exports = function centertext_plugin(md) {
       }
     }
     if (foundStart && foundEnd) {
+      var startStack = []; // stack of start delimiters
+      var leftmostStart = 999; // tracks leftmost start ->
+      var rightmostEnd = -1; // tracks rightmost end <-
+      var startDelim, endDelim;
+
       for (i = 0; i < max; i++) {
         delim = delimiters[i];
 
-        if (delim.marker === '->') {
-          foundStart = true;
-          token         = state.tokens[delim.token];
-          token.type    = 'centertext_open';
-          token.tag     = 'div';
-          token.nesting = 1;
-          token.markup  = '->';
-          token.content = '';
-          token.attrs = [ [ 'class', 'text-center' ] ];
-        } else if (delim.marker === '<-') {
-          if (foundStart) {
-            token         = state.tokens[delim.token];
-            token.type    = 'centertext_close';
-            token.tag     = 'div';
-            token.nesting = -1;
-            token.markup  = '<-';
-            token.content = '';
+        if (delim.marker === "->") {
+          startStack.push(delim);
+        } else if (delim.marker === "<-") {
+          startDelim = startStack.pop();
+          endDelim = delim;
+          if (!startDelim) {
+            continue; // unmatched close, skip it
           }
+
+          if (leftmostStart > startDelim.token) {
+            leftmostStart = startDelim.token;
+          }
+          if (rightmostEnd < endDelim.token) {
+            rightmostEnd = endDelim.token;
+          }
+
+          token = state.tokens[startDelim.token];
+          token.type = "centertext_open";
+          token.tag = "div";
+          token.nesting = 1;
+          token.markup = "->";
+          token.content = "";
+          token.attrs = [["class", "text-center"]];
+
+          token = state.tokens[endDelim.token];
+          token.type = "centertext_close";
+          token.tag = "div";
+          token.nesting = -1;
+          token.markup = "<-";
+          token.content = "";
         }
       }
+
+      if (leftmostStart === 999 || rightmostEnd === -1) {
+        return; // no valid center text found
+      }
+
+      // Insert <p> and </p> tags to close auto-inserted paragraphs
+      // by inline ruler
+      let openPTok = new state.Token("html_inline", "", 0);
+      openPTok.content = "<p>";
+      state.tokens.splice(rightmostEnd, 0, openPTok);
+
+      let closePTok = new state.Token("html_inline", "", 0);
+      closePTok.content = "</p>";
+      state.tokens.splice(leftmostStart, 0, closePTok);
     }
   }
 
